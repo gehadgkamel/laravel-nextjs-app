@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # Laravel Backend
+  app:
+    build:
+      context: ./laravel-backend
+      dockerfile: Dockerfile
+    container_name: laravel-app
+    restart: unless-stopped
+    volumes:
+      - ./laravel-backend:/var/www/html
+    networks:
+      - app-network
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: laravel
+      DB_USERNAME: laravel
+      DB_PASSWORD: mypass123
+
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: laravel-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: laravel
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: mypass123
+      MYSQL_ROOT_PASSWORD: mypass123
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - app-network
+
+  # # phpMyAdmin (Optional)
+#   phpmyadmin:
+#     image: phpmyadmin/phpmyadmin
+#     container_name: laravel-phpmyadmin
+#     restart: unless-stopped
+#     ports:
+#       - "8080:80"
+#     environment:
+#       PMA_HOST: db
+#       MYSQL_ROOT_PASSWORD: your_root_password
+#     depends_on:
+#       - db
+#     networks:
+#       - app-network
+
+  # Next.js Frontend
+  nextjs:
+    build:
+      context: ./nextjs-frontend
+      dockerfile: Dockerfile
+    container_name: nextjs-app
+    restart: unless-stopped
+    volumes:
+      - ./nextjs-frontend:/app
+    networks:
+      - app-network
+    depends_on:
+      - app
+    environment:
+      NEXT_PUBLIC_API_URL: http://nginx/api
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:latest
+    container_name: nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    networks:
+      - app-network
+    depends_on:
+      - app
+      - nextjs
+
+volumes:
+  dbdata:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
